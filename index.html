@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#1c2a22" />
+    <title>Seed of Life</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0f1f1a;
+        font-family: "Trebuchet MS", Arial, sans-serif;
+        touch-action: none;
+      }
+
+      #game-root {
+        width: 100%;
+        height: 100%;
+      }
+
+      canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+        image-rendering: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-root"></div>
+
+    <!-- Phaser 3.55+ mandatory CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <script src="game.js"></script>
+  </body>
+</html>
