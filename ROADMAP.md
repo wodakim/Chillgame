@@ -7,33 +7,33 @@ Construire un MMORPG chill solo-first en Phaser 3, performant mobile, extensible
 - [x] Structure initiale `index.html` + `game.js`.
 - [x] Pipeline scènes: Boot, Preload, Menu, CharacterCreation, MainWorld, UIOverlay.
 - [x] Persistance locale (auto-save / load) via `localStorage`.
-- [x] Combat réactif de base (auto-attack + skills 1-8).
 - [x] Contrôles clavier + touch joystick + boutons tactiles de skills.
 
-## Phase 1 — v1 Playable & Beautiful (en cours)
-- [x] Suppression du rendu debug/grille et fond propre prêt prod.
-- [x] Parallax 2.5D Wakfu-like en 5 layers + lumière douce + teinte dynamique ecoBalance.
-- [x] Joystick mobile corrigé: 40% gauche réservé movement, 60% droite interaction/clic.
-- [x] Mouvement plus naturel (accélération/décélération type Ragnarok).
-- [x] Métier jouable: Lumberjack (arbres interactifs, récolte, drops, XP, eco gain).
-- [x] Respawn arbres à 30s avec animation de pousse.
-- [x] Barre eco dynamique UI + feedback humeur de l’Arbre de Vie.
-- [x] Spawn monstres agressifs doux quand ecoBalance < 40 (chase léger).
-- [ ] Polissage audio (ambiances + chop + UI).
-- [ ] UI inventaire détaillé et tooltip ressources.
+## Phase 1 — v1 Playable & Beautiful (terminée)
+- [x] Parallax artistique placeholder + feedback eco + premier loop Lumberjack.
 
-## Phase 2 — Boucle durable
-- [ ] Génération procédurale de biomes (forêt/plaine/rivière/montagne).
-- [ ] Nodes de récolte persistants avancés (pooling/culling par chunk).
-- [ ] Ateliers de craft placés dans le monde.
-- [ ] Quêtes écosystème légères et répétables.
+## Phase 2 — Top-Down 2.5D Wakfu Loop (en cours)
+- [x] Passage en vrai top-down 2.5D avec 3 layers visuels.
+- [x] Layering gameplay principal avec depth sorting par Y (arbres/joueur/monstres/récoltables).
+- [x] Parallax ultra léger uniquement pour éléments très lointains.
+- [x] Foreground vivant (fleurs/herbes/buissons) avec perception de profondeur caméra.
+- [x] Refonte repousse naturelle arbres: 15-30 minutes selon ecoBalance.
+- [x] Plantation de graine sur emplacement vide: pousse 8-15s + particules + animation.
+- [x] Bonus arbres plantés: +50% bois et +2 graines à la prochaine récolte.
+- [x] ÉcoBalance logique corrigée:
+  - coupe arbre = pénalité éco
+  - kill monstre = gain éco
+  - plantation = gros gain éco
+- [x] UI EcoBalance dynamique (barre + messages humeur + floating text).
+- [x] Joystick 40% gauche / interactions 60% droite conservés.
+- [x] Caméra follow encore plus smooth.
+
+## Phase 3 — Boucle durable
+- [ ] Faune passive quand ecoBalance > 80 avec interactions.
+- [ ] Crafting stations + recettes concrètes + stockage.
+- [ ] Quêtes écosystème légères répétables.
 - [ ] Mini-map dynamique réelle.
-
-## Phase 3 — Profondeur systèmes
-- [ ] Inventaire catégorisé + poids + stockage coffre.
-- [ ] Outils équipables et progression qualité des outils.
-- [ ] Formules de rendement avancées liées à `ecoBalance`.
-- [ ] Arbre de talents métiers.
+- [ ] Audio design chill (ambiances + feedback métiers).
 
 ## Phase 4 — Pré-multijoueur
 - [ ] Couche réseau abstraite (`LocalAdapter` -> `SocketAdapter`).

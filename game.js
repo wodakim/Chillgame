@@ -1,10 +1,9 @@
 /*
- * Seed of Life - v1 Playable & Beautiful
- * Pure JS + TypeScript-like JSDoc for future TS migration.
- * Mobile-first Phaser 3 architecture with light CPU/GPU footprint.
+ * Seed of Life - v0.3 Top-Down 2.5D loop
+ * Pure JS + TS-like comments for readability and future split into modules.
  */
 
-const GAME_VERSION = "0.2.0-playable-beautiful";
+const GAME_VERSION = "0.3.0-topdown-eco-loop";
 const SAVE_KEY = "seed_of_life_save_v1";
 
 const PROFESSIONS = {
@@ -24,7 +23,6 @@ class SaveManager {
       const data = localStorage.getItem(SAVE_KEY);
       return data ? JSON.parse(data) : null;
     } catch (e) {
-      console.warn("Save load failed", e);
       return null;
     }
   }
@@ -45,26 +43,26 @@ class EcosystemManager {
     this.lastMood = this.getMood();
   }
 
-  changeBalance(delta) {
+  getMood() {
+    if (this.ecoBalance > 80) return "blooming";
+    if (this.ecoBalance < 40) return "weakened";
+    return "stable";
+  }
+
+  changeBalance(delta, reason = "") {
     const previous = this.ecoBalance;
     this.ecoBalance = Phaser.Math.Clamp(this.ecoBalance + delta, 0, 100);
-    this.scene.events.emit("eco:changed", this.ecoBalance, previous);
+    this.scene.events.emit("eco:changed", this.ecoBalance, previous, reason);
 
     const mood = this.getMood();
     if (mood !== this.lastMood) {
       this.lastMood = mood;
-      if (mood === "thriving") {
-        this.scene.events.emit("eco:message", "L’Arbre de Vie est satisfait !", 0xb5f27f);
-      } else if (mood === "angered") {
-        this.scene.events.emit("eco:message", "L’Arbre est en colère…", 0xff8b73);
+      if (mood === "weakened") {
+        this.scene.events.emit("eco:message", "L’Arbre est affaibli…", 0xff8c72);
+      } else if (mood === "blooming") {
+        this.scene.events.emit("eco:message", "La vie renaît ! 🌱", 0xa5f07f);
       }
     }
-  }
-
-  getMood() {
-    if (this.ecoBalance > 70) return "thriving";
-    if (this.ecoBalance < 40) return "angered";
-    return "fragile";
   }
 }
 
@@ -73,23 +71,8 @@ class ProfessionSystem {
     this.scene = scene;
     this.professions = {};
     [...PROFESSIONS.gathering, ...PROFESSIONS.crafting].forEach((name) => {
-      this.professions[name] = persisted?.[name] || {
-        xp: 0,
-        level: 1,
-        tool: this.getDefaultTool(name)
-      };
+      this.professions[name] = persisted?.[name] || { xp: 0, level: 1, tool: this.getDefaultTool(name) };
     });
-
-    this.recipeBook = {
-      Baker: [{ id: "bread_seed", label: "Pain de graine", requires: [{ item: "Seed Flour", qty: 2 }] }],
-      Chef: [{ id: "river_stew", label: "Ragoût rivière", requires: [{ item: "Fish", qty: 1 }] }],
-      Armorer: [{ id: "bark_guard", label: "Armure d'écorce", requires: [{ item: "Hard Bark", qty: 3 }] }],
-      Handyman: [{ id: "eco_box", label: "Coffre écologique", requires: [{ item: "Plank", qty: 3 }] }],
-      Jeweler: [{ id: "seed_ring", label: "Anneau de graine", requires: [{ item: "Crystal", qty: 1 }] }],
-      Carver: [{ id: "wooden_focus", label: "Catalyseur taillé", requires: [{ item: "Ancient Wood", qty: 2 }] }],
-      Tailor: [{ id: "fiber_cloak", label: "Cape de fibres", requires: [{ item: "Fiber", qty: 2 }] }],
-      Weaponsmith: [{ id: "sap_blade", label: "Lame de sève", requires: [{ item: "Iron Ore", qty: 2 }] }]
-    };
   }
 
   getDefaultTool(name) {
@@ -120,7 +103,10 @@ class ProfessionSystem {
 }
 
 /**
- * 5-layer painterly parallax manager with eco-reactive tinting and sun filtering.
+ * Top-down 2.5D world layering
+ * - Layer 1: distant floor + very far mountains (tiny parallax)
+ * - Layer 2: gameplay entities depth-sorted by Y
+ * - Layer 3: foreground foliage slightly faster camera factor
  */
 class ParallaxBackgroundManager {
   constructor(scene, worldWidth, worldHeight) {
@@ -128,177 +114,115 @@ class ParallaxBackgroundManager {
     this.worldWidth = worldWidth;
     this.worldHeight = worldHeight;
     this.time = 0;
-    this.layers = [];
 
     this.createTextures();
     this.createLayers();
-    this.createSunLight();
     this.applyEcoTint(72);
   }
 
   createTextures() {
-    this.paintSkyTex();
-    this.paintMountainTex();
-    this.paintForestTex();
-    this.paintTreesTex();
-    this.paintForegroundTex();
-    this.paintSunTex();
-  }
-
-  paintSkyTex() {
-    const g = this.scene.make.graphics({ x: 0, y: 0, add: false });
-    g.fillStyle(0x86ddd2, 1);
-    g.fillRect(0, 0, 1024, 512);
-    for (let i = 0; i < 20; i += 1) {
-      const x = 50 + i * 50;
-      const y = Phaser.Math.Between(40, 220);
-      g.fillStyle(0xd7f3f5, 0.24);
-      g.fillEllipse(x, y, Phaser.Math.Between(90, 180), Phaser.Math.Between(24, 52));
+    const g1 = this.scene.make.graphics({ add: false });
+    g1.fillStyle(0x365e44, 1);
+    g1.fillRect(0, 0, 1024, 1024);
+    for (let i = 0; i < 700; i += 1) {
+      g1.fillStyle(Phaser.Math.Between(0, 1) ? 0x3f6d4d : 0x477855, Phaser.Math.FloatBetween(0.2, 0.7));
+      g1.fillCircle(Phaser.Math.Between(0, 1024), Phaser.Math.Between(0, 1024), Phaser.Math.Between(1, 3));
     }
-    g.generateTexture("parallax_sky", 1024, 512);
-    g.destroy();
-  }
+    g1.generateTexture("td_ground", 1024, 1024);
+    g1.destroy();
 
-  paintMountainTex() {
-    const g = this.scene.make.graphics({ add: false });
-    g.fillStyle(0x2f5c4a, 0.95);
-    g.beginPath();
-    g.moveTo(0, 512);
-    for (let x = 0; x <= 1024; x += 120) g.lineTo(x, Phaser.Math.Between(180, 360));
-    g.lineTo(1024, 512);
-    g.closePath();
-    g.fillPath();
-    g.fillStyle(0xb7d6c8, 0.14);
-    for (let i = 0; i < 8; i += 1) g.fillEllipse(Phaser.Math.Between(0, 1024), Phaser.Math.Between(220, 360), 240, 60);
-    g.generateTexture("parallax_mountains", 1024, 512);
-    g.destroy();
-  }
+    const g2 = this.scene.make.graphics({ add: false });
+    g2.fillStyle(0x7dcfca, 1);
+    g2.fillRect(0, 0, 1024, 512);
+    g2.fillStyle(0x3d6850, 0.75);
+    g2.beginPath();
+    g2.moveTo(0, 512);
+    for (let x = 0; x <= 1024; x += 100) g2.lineTo(x, Phaser.Math.Between(210, 370));
+    g2.lineTo(1024, 512);
+    g2.closePath();
+    g2.fillPath();
+    g2.generateTexture("td_far_mountains", 1024, 512);
+    g2.destroy();
 
-  paintForestTex() {
-    const g = this.scene.make.graphics({ add: false });
-    g.fillStyle(0x214d37, 0.9);
-    g.fillRect(0, 330, 1024, 182);
-    for (let i = 0; i < 120; i += 1) {
+    const g3 = this.scene.make.graphics({ add: false });
+    g3.fillStyle(0x4c8a55, 0.8);
+    g3.fillRect(0, 420, 1024, 92);
+    for (let i = 0; i < 180; i += 1) {
       const x = Phaser.Math.Between(0, 1024);
-      const y = Phaser.Math.Between(240, 370);
-      g.fillStyle(0x2e6b47, 0.55);
-      g.fillTriangle(x, y, x - 18, y + 70, x + 18, y + 70);
+      const y = Phaser.Math.Between(420, 510);
+      g3.fillStyle(Phaser.Math.Between(0, 1) ? 0x75ba63 : 0x8ed375, Phaser.Math.FloatBetween(0.5, 1));
+      g3.fillRect(x, y, 2, Phaser.Math.Between(8, 22));
+      if (Math.random() > 0.75) g3.fillCircle(x + 1, y - 2, 2);
     }
-    g.generateTexture("parallax_forest_far", 1024, 512);
-    g.destroy();
-  }
-
-  paintTreesTex() {
-    const g = this.scene.make.graphics({ add: false });
-    g.fillStyle(0x28563a, 0.95);
-    g.fillRect(0, 300, 1024, 212);
-    for (let i = 0; i < 42; i += 1) {
-      const x = 24 + i * 24;
-      const trunkH = Phaser.Math.Between(34, 58);
-      g.fillStyle(0x4d2f1e, 0.92);
-      g.fillRect(x, 330 - trunkH, 9, trunkH + 40);
-      g.fillStyle(0x3b8a4d, 0.9);
-      g.fillCircle(x + 5, 292 - trunkH, Phaser.Math.Between(18, 26));
-    }
-    g.generateTexture("parallax_trees_mid", 1024, 512);
-    g.destroy();
-  }
-
-  paintForegroundTex() {
-    const g = this.scene.make.graphics({ add: false });
-    g.fillStyle(0x487d45, 0.85);
-    g.fillRect(0, 380, 1024, 132);
-    for (let i = 0; i < 190; i += 1) {
-      const x = Phaser.Math.Between(0, 1024);
-      const y = Phaser.Math.Between(380, 510);
-      g.fillStyle(0x7ccf64, Phaser.Math.FloatBetween(0.45, 0.95));
-      g.fillRect(x, y, 2, Phaser.Math.Between(8, 18));
-      if (Math.random() > 0.8) {
-        g.fillStyle(0xf1c27d, 0.8);
-        g.fillCircle(x + 2, y - 2, 2);
-      }
-    }
-    g.generateTexture("parallax_foreground", 1024, 512);
-    g.destroy();
-  }
-
-  paintSunTex() {
-    const c = this.scene.textures.createCanvas("sun_filter", 512, 512);
-    const ctx = c.getContext();
-    const grad = ctx.createRadialGradient(256, 80, 30, 256, 80, 260);
-    grad.addColorStop(0, "rgba(255,246,200,0.45)");
-    grad.addColorStop(1, "rgba(255,246,200,0)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 512, 512);
-    c.refresh();
-  }
-
-  createLayer(texture, factorX, factorY, alpha, y, depth) {
-    const tile = this.scene.add.tileSprite(this.worldWidth * 0.5, y, this.worldWidth, this.worldHeight, texture)
-      .setOrigin(0.5)
-      .setScrollFactor(0, 0)
-      .setAlpha(alpha)
-      .setDepth(depth);
-    this.layers.push({ tile, factorX, factorY, floating: Phaser.Math.FloatBetween(0.08, 0.22), baseY: y });
+    g3.generateTexture("td_foreground", 1024, 512);
+    g3.destroy();
   }
 
   createLayers() {
-    this.createLayer("parallax_sky", 0.06, 0.04, 0.95, this.scene.scale.height * 0.5, -200);
-    this.createLayer("parallax_mountains", 0.14, 0.08, 0.85, this.scene.scale.height * 0.58, -180);
-    this.createLayer("parallax_forest_far", 0.22, 0.12, 0.88, this.scene.scale.height * 0.66, -150);
-    this.createLayer("parallax_trees_mid", 0.35, 0.18, 0.93, this.scene.scale.height * 0.76, -120);
-    this.createLayer("parallax_foreground", 0.52, 0.28, 0.97, this.scene.scale.height * 0.88, 40);
+    // Layer 1 (rear)
+    this.skyMountains = this.scene.add.tileSprite(this.worldWidth * 0.5, 260, this.worldWidth, 760, "td_far_mountains")
+      .setScrollFactor(0.92, 0.95)
+      .setDepth(-200)
+      .setAlpha(0.9);
+
+    this.ground = this.scene.add.tileSprite(this.worldWidth * 0.5, this.worldHeight * 0.5, this.worldWidth, this.worldHeight, "td_ground")
+      .setScrollFactor(1, 1)
+      .setDepth(-150);
+
+    // Layer 2 handled in MainWorld via this.entityLayer container depth sorting.
+
+    // Layer 3 (front)
+    this.foreground = this.scene.add.tileSprite(this.worldWidth * 0.5, this.worldHeight * 0.5, this.worldWidth, this.worldHeight, "td_foreground")
+      .setScrollFactor(1.04, 1.02)
+      .setDepth(5000)
+      .setAlpha(0.65);
   }
 
-  createSunLight() {
-    this.sunFilter = this.scene.add.image(this.scene.scale.width * 0.52, this.scene.scale.height * 0.1, "sun_filter")
-      .setScrollFactor(0)
-      .setBlendMode(Phaser.BlendModes.SCREEN)
-      .setAlpha(0.55)
-      .setDepth(200);
+  applyEcoTint(eco) {
+    let tintRear = 0xa7d8ad;
+    let tintGround = 0xb7deb0;
+    let tintFront = 0xcbe8ba;
+    if (eco < 40) {
+      tintRear = 0x8f5a4b;
+      tintGround = 0x7d4f42;
+      tintFront = 0x9f6b58;
+    } else if (eco > 80) {
+      tintRear = 0xcff3be;
+      tintGround = 0xd9f7c7;
+      tintFront = 0xecffce;
+    }
+    this.skyMountains.setTint(tintRear);
+    this.ground.setTint(tintGround);
+    this.foreground.setTint(tintFront);
   }
 
-  applyEcoTint(ecoBalance) {
-    let tint = 0xa8dba6;
-    if (ecoBalance > 70) tint = 0xc8f0a0;
-    if (ecoBalance < 40) tint = 0x7f5345;
-    this.layers.forEach((l) => l.tile.setTint(tint));
-    this.sunFilter.setTint(ecoBalance < 40 ? 0xcc8b73 : 0xfff4c9);
-    this.sunFilter.setAlpha(ecoBalance < 40 ? 0.35 : 0.55);
-  }
-
-  update(camera, delta, ecoBalance) {
+  update(camera, delta, eco) {
     this.time += delta * 0.001;
-    this.layers.forEach((l, idx) => {
-      l.tile.tilePositionX = camera.scrollX * l.factorX;
-      l.tile.tilePositionY = camera.scrollY * l.factorY;
-      l.tile.y = l.baseY + Math.sin(this.time * l.floating + idx) * 6;
-    });
-    this.sunFilter.x = this.scene.scale.width * 0.52 + Math.sin(this.time * 0.2) * 22;
-    this.applyEcoTint(ecoBalance);
+    this.skyMountains.tilePositionX = camera.scrollX * 0.025; // very slight parallax only for distant elements
+    this.skyMountains.tilePositionY = camera.scrollY * 0.02;
+    this.skyMountains.y = 260 + Math.sin(this.time * 0.07) * 4;
+    this.applyEcoTint(eco);
   }
 }
 
 class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, color = 0x92d36e) {
-    // TODO: replace with sprite 'assets/player_idle.png' and atlas key 'player'
     if (!scene.textures.exists("player_placeholder")) {
-      const body = scene.add.rectangle(0, 0, 30, 44, color).setStrokeStyle(2, 0xefffe0);
+      const b = scene.add.rectangle(0, 0, 30, 44, color).setStrokeStyle(2, 0xefffe0);
       const rt = scene.make.renderTexture({ width: 34, height: 48, add: false });
-      rt.draw(body, 17, 24);
+      rt.draw(b, 17, 24);
       rt.saveTexture("player_placeholder");
-      body.destroy();
+      b.destroy();
     }
     super(scene, x, y, "player_placeholder");
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
     this.setCollideWorldBounds(true);
-    this.setDepth(50);
     this.targetPoint = null;
-    this.maxSpeed = 185;
-    this.accel = 980;
-    this.decel = 860;
+    this.maxSpeed = 195;
+    this.accel = 920;
+    this.decel = 820;
     this.autoAttackRange = 96;
     this.woodcutBusy = false;
   }
@@ -316,39 +240,36 @@ class Player extends Phaser.Physics.Arcade.Sprite {
 
     let ax = 0;
     let ay = 0;
-
     if (cursors.left.isDown) ax = -1;
     else if (cursors.right.isDown) ax = 1;
     if (cursors.up.isDown) ay = -1;
     else if (cursors.down.isDown) ay = 1;
 
     if (joystickVec) {
-      if (Math.abs(joystickVec.x) > 0.08) ax = joystickVec.x;
-      if (Math.abs(joystickVec.y) > 0.08) ay = joystickVec.y;
+      if (Math.abs(joystickVec.x) > 0.06) ax = joystickVec.x;
+      if (Math.abs(joystickVec.y) > 0.06) ay = joystickVec.y;
     }
 
     const vel = this.body.velocity;
-    const deltaFactor = dt / 1000;
+    const f = dt / 16.67;
 
     if (ax !== 0 || ay !== 0) {
       const dir = new Phaser.Math.Vector2(ax, ay).normalize();
-      const targetVX = dir.x * this.maxSpeed;
-      const targetVY = dir.y * this.maxSpeed;
-      vel.x = Phaser.Math.Linear(vel.x, targetVX, this.accel * 0.001 * deltaFactor * 6);
-      vel.y = Phaser.Math.Linear(vel.y, targetVY, this.accel * 0.001 * deltaFactor * 6);
+      vel.x = Phaser.Math.Linear(vel.x, dir.x * this.maxSpeed, 0.16 * f);
+      vel.y = Phaser.Math.Linear(vel.y, dir.y * this.maxSpeed, 0.16 * f);
       this.targetPoint = null;
     } else if (this.targetPoint) {
-      const dist = Phaser.Math.Distance.Between(this.x, this.y, this.targetPoint.x, this.targetPoint.y);
-      if (dist < 8) {
+      const d = Phaser.Math.Distance.Between(this.x, this.y, this.targetPoint.x, this.targetPoint.y);
+      if (d <= 8) {
         this.targetPoint = null;
       } else {
         const dir = new Phaser.Math.Vector2(this.targetPoint.x - this.x, this.targetPoint.y - this.y).normalize();
-        vel.x = Phaser.Math.Linear(vel.x, dir.x * this.maxSpeed, this.accel * 0.001 * deltaFactor * 6);
-        vel.y = Phaser.Math.Linear(vel.y, dir.y * this.maxSpeed, this.accel * 0.001 * deltaFactor * 6);
+        vel.x = Phaser.Math.Linear(vel.x, dir.x * this.maxSpeed, 0.13 * f);
+        vel.y = Phaser.Math.Linear(vel.y, dir.y * this.maxSpeed, 0.13 * f);
       }
     } else {
-      vel.x = Phaser.Math.Linear(vel.x, 0, this.decel * 0.001 * deltaFactor * 6);
-      vel.y = Phaser.Math.Linear(vel.y, 0, this.decel * 0.001 * deltaFactor * 6);
+      vel.x = Phaser.Math.Linear(vel.x, 0, 0.14 * f);
+      vel.y = Phaser.Math.Linear(vel.y, 0, 0.14 * f);
     }
 
     this.setVelocity(vel.x, vel.y);
@@ -369,11 +290,15 @@ class CombatSystem {
     if (nearby && time - this.lastAttack > this.attackSpeedMs) {
       this.lastAttack = time;
       nearby.hp -= 10;
-      this.scene.events.emit("floating:text", "-10", 0xff8080, nearby.x, nearby.y - 22);
+      this.scene.events.emit("floating:text", "-10", 0xff8080, nearby.x, nearby.y - 20);
       if (nearby.hp <= 0) {
         monsters.killAndHide(nearby);
         nearby.body.enable = false;
         this.scene.events.emit("inventory:add", "Monster Essence", 1);
+
+        const ecoGain = Phaser.Math.Between(4, 12);
+        this.scene.events.emit("floating:text", `+${ecoGain} Eco 🌱`, 0x9aeb88, nearby.x, nearby.y - 36);
+        this.scene.events.emit("eco:delta", ecoGain, "monster_kill");
       }
     }
   }
@@ -399,7 +324,6 @@ class PreloadScene extends Phaser.Scene {
   preload() {
     this.cameras.main.setBackgroundColor("#000000");
     this.add.text(this.scale.width * 0.5, this.scale.height * 0.5, "Seed of Life\nLoading...", { fontSize: "24px", color: "#ecffd6", align: "center" }).setOrigin(0.5);
-    // TODO: preload atlas placeholders: this.load.atlas('player', 'assets/player.png', 'assets/player.json')
   }
   create() { this.scene.start("Menu"); }
 }
@@ -484,24 +408,29 @@ class MainWorldScene extends Phaser.Scene {
     this.playerData = save?.player || this.playerMeta || { playerName: "Gardien", classId: "sprout", color: 0x92d36e };
     this.ecosystem = new EcosystemManager(this, save?.ecoBalance ?? 72);
     this.professions = new ProfessionSystem(this, save?.professions);
+    this.inventory = save?.inventory || { Graines: 10, Bois: 0, "Monster Essence": 0 };
 
     this.bgManager = new ParallaxBackgroundManager(this, this.worldWidth, this.worldHeight);
-    this.player = new Player(this, save?.position?.x || 400, save?.position?.y || 300, this.playerData.color || 0x92d36e);
 
-    this.cameras.main.startFollow(this.player, true, 0.055, 0.055); // smooth follow with tiny lag
+    // Layer 2 main gameplay container (depth sorting by y)
+    this.entityLayer = this.add.container(0, 0).setDepth(0);
+
+    this.createMonsterTexture();
+    this.createTreeTextures();
+
+    this.player = new Player(this, save?.position?.x || 400, save?.position?.y || 300, this.playerData.color || 0x92d36e);
+    this.entityLayer.add(this.player);
+
+    this.cameras.main.startFollow(this.player, true, 0.035, 0.035);
     this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight);
-    this.cameras.main.setZoom(1);
 
     this.cursors = this.input.keyboard.createCursorKeys();
-    this.keys = this.input.keyboard.addKeys("W,A,S,D,ONE,TWO,THREE,FOUR,FIVE,SIX,SEVEN,EIGHT,E");
+    this.keys = this.input.keyboard.addKeys("W,A,S,D,ONE,TWO,THREE,FOUR,FIVE,SIX,SEVEN,EIGHT");
 
     this.joystickState = { active: false, origin: null, delta: { x: 0, y: 0 }, pointerId: null };
     this.setupTouchControls();
 
-    this.monsters = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: 56, runChildUpdate: false });
-    this.createMonsterTexture();
-    this.createTreeTextures();
-
+    this.monsters = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize: 56 });
     this.treeNodes = [];
     this.populateTrees();
 
@@ -509,62 +438,88 @@ class MainWorldScene extends Phaser.Scene {
 
     this.input.on("pointerdown", (pointer) => {
       const isTouch = pointer.pointerType === "touch" || pointer.wasTouch;
-      if (isTouch && pointer.x <= this.scale.width * 0.4) return; // left side reserved for joystick
+      if (isTouch && pointer.x <= this.scale.width * 0.4) return; // left 40% reserved joystick
 
-      this.player.moveToPoint({ x: pointer.worldX, y: pointer.worldY });
-      this.tryLumberjackAction(pointer.worldX, pointer.worldY);
+      const wx = pointer.worldX;
+      const wy = pointer.worldY;
+      this.player.moveToPoint({ x: wx, y: wy });
+
+      if (this.tryLumberjackAction(wx, wy)) return;
+      this.tryPlantSeed(wx, wy);
     });
 
+    this.time.addEvent({ delay: 1400, loop: true, callback: this.maintainEcoMonsters, callbackScope: this });
     this.time.addEvent({ delay: 8000, loop: true, callback: this.autoSave, callbackScope: this });
-    this.time.addEvent({ delay: 1300, loop: true, callback: this.maintainEcoMonsters, callbackScope: this });
 
-    this.events.on("inventory:add", (item, qty) => this.scene.get("UIOverlay")?.addInventory(item, qty));
-    this.events.on("eco:changed", (value) => this.bgManager.applyEcoTint(value));
-    this.events.on("eco:message", (msg, color) => {
-      this.events.emit("floating:text", msg, color, this.player.x, this.player.y - 70);
-      this.emitEcoParticles(color);
-    });
+    this.events.on("inventory:add", (item, qty) => this.addInventory(item, qty));
+    this.events.on("eco:delta", (delta, reason) => this.ecosystem.changeBalance(delta, reason));
 
     this.events.emit("world:ready", {
       player: this.playerData,
       ecoBalance: this.ecosystem.ecoBalance,
-      professions: this.professions.professions
+      professions: this.professions.professions,
+      inventory: this.inventory
     });
+  }
+
+  addInventory(item, qty) {
+    this.inventory[item] = (this.inventory[item] || 0) + qty;
+    this.scene.get("UIOverlay")?.addInventory(item, qty, this.inventory);
+  }
+
+  consumeInventory(item, qty) {
+    const current = this.inventory[item] || 0;
+    if (current < qty) return false;
+    this.inventory[item] = current - qty;
+    this.scene.get("UIOverlay")?.syncInventory(this.inventory);
+    return true;
   }
 
   createMonsterTexture() {
     if (this.textures.exists("monster_placeholder")) return;
-    const body = this.add.rectangle(0, 0, 26, 26, 0xc05454).setStrokeStyle(2, 0xf7cfcf);
+    const b = this.add.rectangle(0, 0, 26, 26, 0xc05454).setStrokeStyle(2, 0xf7cfcf);
     const rt = this.make.renderTexture({ width: 30, height: 30, add: false });
-    rt.draw(body, 15, 15);
+    rt.draw(b, 15, 15);
     rt.saveTexture("monster_placeholder");
-    body.destroy();
+    b.destroy();
   }
 
   createTreeTextures() {
-    if (this.textures.exists("tree_placeholder")) return;
-    const g = this.make.graphics({ add: false });
+    if (!this.textures.exists("tree_placeholder")) {
+      const g = this.make.graphics({ add: false });
+      // TODO: replace with sprite 'assets/tree_oak.png' atlas key 'tree_oak'
+      g.fillStyle(0x1b1b1b, 0.2);
+      g.fillEllipse(44, 84, 54, 18);
+      g.fillStyle(0x6b3d20, 1);
+      g.fillRoundedRect(36, 40, 16, 40, 4);
+      g.fillStyle(0x2f8e4f, 1);
+      g.fillCircle(44, 34, 28);
+      g.fillStyle(0x46a861, 0.8);
+      g.fillCircle(32, 32, 14);
+      g.fillCircle(55, 30, 12);
+      g.generateTexture("tree_placeholder", 88, 96);
+      g.destroy();
+    }
 
-    // TODO: replace with sprite 'assets/tree_oak.png' atlas key 'tree_oak'
-    g.fillStyle(0x1b1b1b, 0.22);
-    g.fillEllipse(44, 84, 54, 18);
-    g.fillStyle(0x6b3d20, 1);
-    g.fillRoundedRect(36, 40, 16, 40, 4);
-    g.fillStyle(0x2f8e4f, 1);
-    g.fillCircle(44, 34, 28);
-    g.fillStyle(0x46a861, 0.8);
-    g.fillCircle(32, 32, 14);
-    g.fillCircle(55, 30, 12);
-    g.generateTexture("tree_placeholder", 88, 96);
-    g.destroy();
+    if (!this.textures.exists("sapling_placeholder")) {
+      const g2 = this.make.graphics({ add: false });
+      g2.fillStyle(0x5f381e, 1);
+      g2.fillRect(20, 20, 4, 18);
+      g2.fillStyle(0x58af54, 1);
+      g2.fillCircle(22, 16, 8);
+      g2.generateTexture("sapling_placeholder", 44, 44);
+      g2.destroy();
+    }
 
-    const axe = this.make.graphics({ add: false });
-    axe.fillStyle(0x8e6a47, 1);
-    axe.fillRect(8, 6, 3, 20);
-    axe.fillStyle(0xb3c4cf, 1);
-    axe.fillTriangle(11, 9, 20, 5, 20, 16);
-    axe.generateTexture("axe_icon", 24, 30);
-    axe.destroy();
+    if (!this.textures.exists("axe_icon")) {
+      const axe = this.make.graphics({ add: false });
+      axe.fillStyle(0x8e6a47, 1);
+      axe.fillRect(8, 6, 3, 20);
+      axe.fillStyle(0xb3c4cf, 1);
+      axe.fillTriangle(11, 9, 20, 5, 20, 16);
+      axe.generateTexture("axe_icon", 24, 30);
+      axe.destroy();
+    }
   }
 
   populateTrees() {
@@ -572,28 +527,43 @@ class MainWorldScene extends Phaser.Scene {
     for (let i = 0; i < count; i += 1) {
       const x = Phaser.Math.Between(260, this.worldWidth - 260);
       const y = Phaser.Math.Between(220, this.worldHeight - 220);
-      this.treeNodes.push(this.createTreeNode(x, y));
+      const size = Phaser.Math.Between(1, 3);
+      const tree = this.createTreeNode(x, y, size);
+      this.treeNodes.push(tree);
     }
   }
 
-  createTreeNode(x, y) {
-    const tree = this.add.image(x, y, "tree_placeholder").setDepth(y + 6);
+  createTreeNode(x, y, size = 1) {
+    const tree = this.add.image(x, y, "tree_placeholder").setScale(0.9 + size * 0.15);
     tree.setDataEnabled();
-    tree.setData({ active: true, respawnAt: 0, chopping: false });
+    tree.setData({
+      active: true,
+      chopping: false,
+      plantedByPlayer: false,
+      respawnAt: 0,
+      size,
+      x,
+      y
+    });
+    this.entityLayer.add(tree);
     return tree;
   }
 
-  tryLumberjackAction(worldX, worldY) {
-    const closest = this.treeNodes
-      .filter((t) => t.getData("active") && !t.getData("chopping"))
-      .sort((a, b) => Phaser.Math.Distance.Between(worldX, worldY, a.x, a.y) - Phaser.Math.Distance.Between(worldX, worldY, b.x, b.y))[0];
-    if (!closest) return;
+  getNaturalRespawnMs() {
+    // eco high = faster natural repousse in range 900-1800 sec
+    const eco = this.ecosystem.ecoBalance;
+    const t = Phaser.Math.Clamp((100 - eco) / 100, 0, 1);
+    return Phaser.Math.Linear(900000, 1800000, t);
+  }
 
-    const clickDist = Phaser.Math.Distance.Between(worldX, worldY, closest.x, closest.y);
-    const playerDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, closest.x, closest.y);
-    if (clickDist > 110 || playerDist > 80) return;
+  tryLumberjackAction(wx, wy) {
+    const target = this.treeNodes.find((t) => t.getData("active") && !t.getData("chopping") && Phaser.Math.Distance.Between(wx, wy, t.x, t.y) < 110);
+    if (!target) return false;
+    const playerDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, target.x, target.y);
+    if (playerDist > 80) return false;
 
-    this.startChoppingTree(closest);
+    this.startChoppingTree(target);
+    return true;
   }
 
   startChoppingTree(tree) {
@@ -601,15 +571,9 @@ class MainWorldScene extends Phaser.Scene {
     this.player.woodcutBusy = true;
     this.player.setVelocity(0, 0);
 
-    const axe = this.add.image(this.player.x + 18, this.player.y - 8, "axe_icon").setDepth(110);
-    this.tweens.add({
-      targets: axe,
-      angle: { from: -35, to: 45 },
-      duration: 220,
-      yoyo: true,
-      repeat: 5,
-      ease: "Sine.inOut"
-    });
+    const axe = this.add.image(this.player.x + 18, this.player.y - 8, "axe_icon");
+    this.entityLayer.add(axe);
+    this.tweens.add({ targets: axe, angle: { from: -35, to: 45 }, duration: 210, yoyo: true, repeat: 5, ease: "Sine.inOut" });
 
     this.emitWoodParticles(tree.x, tree.y);
 
@@ -621,48 +585,87 @@ class MainWorldScene extends Phaser.Scene {
   }
 
   harvestTree(tree) {
-    const wood = Phaser.Math.Between(4, 10);
-    const seeds = Phaser.Math.Between(1, 3);
-    const ecoGain = Phaser.Math.Between(2, 8);
+    const ecoPenalty = -Phaser.Math.Between(3, 8 + tree.getData("size"));
+    const baseWood = Phaser.Math.Between(4, 10 + tree.getData("size"));
+    const plantedBonus = tree.getData("plantedByPlayer") ? 1.5 : 1;
+    const wood = Math.round(baseWood * plantedBonus);
+    const seeds = Phaser.Math.Between(1, 2) + (tree.getData("plantedByPlayer") ? 2 : 0);
 
     tree.setData("active", false);
     tree.setData("chopping", false);
-    tree.setData("respawnAt", this.time.now + 30000);
+    tree.setData("plantedByPlayer", false);
+    tree.setData("respawnAt", this.time.now + this.getNaturalRespawnMs());
     tree.setVisible(false);
 
-    this.events.emit("inventory:add", "Bois", wood);
-    this.events.emit("inventory:add", "Graines", seeds);
-    this.events.emit("floating:text", `+${wood} Bois 🌳`, 0xffd28e, tree.x, tree.y - 22);
-    this.events.emit("floating:text", `+${ecoGain} Eco 🌱`, 0x8fea8c, tree.x, tree.y - 48);
-
+    this.addInventory("Bois", wood);
+    this.addInventory("Graines", seeds);
     this.professions.gainXp("Lumberjack", wood * 6);
-    this.ecosystem.changeBalance(ecoGain);
+
+    this.events.emit("floating:text", `${ecoPenalty} Eco ⚠️`, 0xffa27b, tree.x, tree.y - 60);
+    this.events.emit("floating:text", `+${wood} Bois 🌳`, 0xffd28e, tree.x, tree.y - 35);
+    this.events.emit("floating:text", `+${seeds} Graines`, 0x9be78b, tree.x, tree.y - 15);
+    this.events.emit("eco:delta", ecoPenalty, "tree_cut");
+  }
+
+  tryPlantSeed(wx, wy) {
+    const emptySpot = this.treeNodes.find((t) => !t.getData("active") && !t.getData("chopping") && Phaser.Math.Distance.Between(wx, wy, t.getData("x"), t.getData("y")) < 90);
+    if (!emptySpot) return false;
+
+    const playerDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, emptySpot.getData("x"), emptySpot.getData("y"));
+    if (playerDist > 90) return false;
+    if (!this.consumeInventory("Graines", 1)) return false;
+
+    const growMs = Phaser.Math.Between(8000, 15000);
+    const x = emptySpot.getData("x");
+    const y = emptySpot.getData("y");
+
+    const sap = this.add.image(x, y + 14, "sapling_placeholder").setScale(0.25).setAlpha(0.9);
+    this.entityLayer.add(sap);
+    this.emitPlantParticles(x, y);
+
+    this.events.emit("floating:text", "Plantation...", 0xc5f29a, x, y - 25);
+    const ecoGain = Phaser.Math.Between(10, 25);
+    this.events.emit("floating:text", `+${ecoGain} Eco 🌱`, 0x9cee86, x, y - 45);
+    this.events.emit("eco:delta", ecoGain, "seed_planted");
+
+    this.time.delayedCall(growMs, () => {
+      sap.destroy();
+      emptySpot.setScale(0.12).setVisible(true);
+      emptySpot.setData("active", true);
+      emptySpot.setData("plantedByPlayer", true);
+      emptySpot.setData("size", Phaser.Math.Between(1, 2));
+      this.tweens.add({ targets: emptySpot, scale: 0.95 + emptySpot.getData("size") * 0.15, duration: 1200, ease: "Back.Out" });
+      this.emitPlantParticles(x, y);
+    });
+
+    return true;
   }
 
   emitWoodParticles(x, y) {
     for (let i = 0; i < 10; i += 1) {
-      const leaf = this.add.circle(x + Phaser.Math.Between(-12, 12), y + Phaser.Math.Between(-12, 12), Phaser.Math.Between(2, 4), i % 2 ? 0x72c45b : 0x8a5b3d)
-        .setDepth(120);
+      const p = this.add.circle(x + Phaser.Math.Between(-12, 12), y - 10 + Phaser.Math.Between(-8, 10), Phaser.Math.Between(2, 4), i % 2 ? 0x79c261 : 0x8d5d3e);
+      this.entityLayer.add(p);
       this.tweens.add({
-        targets: leaf,
-        x: leaf.x + Phaser.Math.Between(-40, 40),
-        y: leaf.y + Phaser.Math.Between(30, 70),
+        targets: p,
+        x: p.x + Phaser.Math.Between(-34, 34),
+        y: p.y + Phaser.Math.Between(24, 70),
         alpha: 0,
-        duration: Phaser.Math.Between(600, 950),
-        onComplete: () => leaf.destroy()
+        duration: Phaser.Math.Between(620, 980),
+        onComplete: () => p.destroy()
       });
     }
   }
 
-  emitEcoParticles(color) {
+  emitPlantParticles(x, y) {
     for (let i = 0; i < 16; i += 1) {
-      const p = this.add.circle(this.player.x, this.player.y - 30, Phaser.Math.Between(2, 5), color).setDepth(120);
+      const p = this.add.circle(x, y, Phaser.Math.Between(2, 4), 0x9feb87);
+      this.entityLayer.add(p);
       this.tweens.add({
         targets: p,
-        x: p.x + Phaser.Math.Between(-80, 80),
-        y: p.y + Phaser.Math.Between(-120, -20),
+        x: x + Phaser.Math.Between(-60, 60),
+        y: y + Phaser.Math.Between(-75, 10),
         alpha: 0,
-        duration: Phaser.Math.Between(700, 1200),
+        duration: Phaser.Math.Between(650, 1150),
         onComplete: () => p.destroy()
       });
     }
@@ -672,30 +675,29 @@ class MainWorldScene extends Phaser.Scene {
     const eco = this.ecosystem.ecoBalance;
     if (eco >= 40) return;
     const active = this.monsters.countActive(true);
-    const target = Phaser.Math.Between(2, 4);
+    const target = Phaser.Math.Between(3, 6);
     for (let i = active; i < target; i += 1) this.spawnMonsterNearPlayer();
   }
 
   spawnMonsterNearPlayer() {
-    const monster = this.monsters.get();
-    if (!monster) return;
+    const m = this.monsters.get();
+    if (!m) return;
+    const ang = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    const r = Phaser.Math.Between(220, 380);
+    const x = Phaser.Math.Clamp(this.player.x + Math.cos(ang) * r, 50, this.worldWidth - 50);
+    const y = Phaser.Math.Clamp(this.player.y + Math.sin(ang) * r, 50, this.worldHeight - 50);
 
-    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-    const radius = Phaser.Math.Between(220, 380);
-    const x = Phaser.Math.Clamp(this.player.x + Math.cos(angle) * radius, 50, this.worldWidth - 50);
-    const y = Phaser.Math.Clamp(this.player.y + Math.sin(angle) * radius, 50, this.worldHeight - 50);
-
-    monster.enableBody(true, x, y, true, true);
-    monster.setTexture("monster_placeholder");
-    monster.setDepth(y + 4);
-    monster.hp = 26;
-    monster.body.setCollideWorldBounds(true);
-    monster.body.setSize(22, 22);
+    m.enableBody(true, x, y, true, true);
+    m.setTexture("monster_placeholder");
+    m.hp = 26;
+    m.body.setCollideWorldBounds(true);
+    m.body.setSize(22, 22);
+    this.entityLayer.add(m);
   }
 
   setupTouchControls() {
-    this.stickBase = this.add.circle(110, this.scale.height - 110, 62, 0x000000, 0.3).setScrollFactor(0).setDepth(2500).setVisible(false);
-    this.stickThumb = this.add.circle(110, this.scale.height - 110, 34, 0xb4df8f, 0.9).setScrollFactor(0).setDepth(2501).setVisible(false);
+    this.stickBase = this.add.circle(110, this.scale.height - 110, 62, 0x000000, 0.3).setScrollFactor(0).setDepth(7000).setVisible(false);
+    this.stickThumb = this.add.circle(110, this.scale.height - 110, 34, 0xb4df8f, 0.9).setScrollFactor(0).setDepth(7001).setVisible(false);
 
     this.input.on("pointerdown", (p) => {
       const isTouch = p.pointerType === "touch" || p.wasTouch;
@@ -738,15 +740,15 @@ class MainWorldScene extends Phaser.Scene {
   updateTrees() {
     const now = this.time.now;
     this.treeNodes.forEach((tree) => {
-      if (!tree.getData("active") && now >= tree.getData("respawnAt")) {
+      if (!tree.getData("active") && now >= tree.getData("respawnAt") && tree.getData("respawnAt") > 0) {
         tree.setVisible(true);
         tree.setScale(0.1);
         tree.setData("active", true);
-        this.tweens.add({ targets: tree, scale: 1, duration: 900, ease: "Back.Out" });
+        tree.setData("respawnAt", 0);
+        this.tweens.add({ targets: tree, scale: 0.95 + tree.getData("size") * 0.15, duration: 1100, ease: "Back.Out" });
       }
 
-      // simple culling on visibility
-      const inRange = Phaser.Math.Distance.Between(this.player.x, this.player.y, tree.x, tree.y) < 1200;
+      const inRange = Phaser.Math.Distance.Between(this.player.x, this.player.y, tree.getData("x"), tree.getData("y")) < 1200;
       tree.setActive(inRange);
       tree.setVisible(tree.getData("active") && inRange);
     });
@@ -762,15 +764,23 @@ class MainWorldScene extends Phaser.Scene {
         return;
       }
 
-      // soft chase only if ecosystem angry
       if (this.ecosystem.ecoBalance < 40) {
         const dir = new Phaser.Math.Vector2(this.player.x - m.x, this.player.y - m.y).normalize();
-        m.setVelocity(dir.x * 58, dir.y * 58);
+        m.setVelocity(dir.x * 65, dir.y * 65);
       } else {
         m.setVelocity(0, 0);
       }
-      m.setDepth(m.y + 4);
     });
+  }
+
+  depthSortEntities() {
+    // Layer 2 depth sorting based on Y for top-down 2.5D
+    const list = this.entityLayer.list;
+    for (let i = 0; i < list.length; i += 1) {
+      const e = list[i];
+      if (!e || !e.active) continue;
+      if (typeof e.y === "number") e.setDepth(Math.floor(e.y));
+    }
   }
 
   autoSave() {
@@ -778,6 +788,7 @@ class MainWorldScene extends Phaser.Scene {
       player: this.playerData,
       ecoBalance: this.ecosystem.ecoBalance,
       professions: this.professions.serialize(),
+      inventory: this.inventory,
       position: { x: this.player.x, y: this.player.y }
     });
   }
@@ -794,11 +805,14 @@ class MainWorldScene extends Phaser.Scene {
     this.player.updateFromInput(cursors, joystick, delta);
 
     const skillKeys = [this.keys.ONE, this.keys.TWO, this.keys.THREE, this.keys.FOUR, this.keys.FIVE, this.keys.SIX, this.keys.SEVEN, this.keys.EIGHT];
-    skillKeys.forEach((k, i) => { if (Phaser.Input.Keyboard.JustDown(k)) this.combat.castSkill(i, time); });
+    skillKeys.forEach((k, i) => {
+      if (Phaser.Input.Keyboard.JustDown(k)) this.combat.castSkill(i, time);
+    });
 
     this.combat.update(time, this.monsters);
     this.updateTrees();
     this.updateMonsters();
+    this.depthSortEntities();
     this.bgManager.update(this.cameras.main, delta, this.ecosystem.ecoBalance);
   }
 }
@@ -809,33 +823,23 @@ class UIOverlayScene extends Phaser.Scene {
   create() {
     this.inventory = {};
 
-    const panel = this.add.rectangle(18, 18, 460, 190, 0x2b3f2e, 0.82)
+    this.add.rectangle(18, 18, 480, 195, 0x2b3f2e, 0.84)
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setStrokeStyle(3, 0x9fbe7c)
-      .setDepth(3000);
+      .setDepth(9000);
 
-    this.ecoText = this.add.text(34, 34, "EcoBalance: --", { fontSize: "20px", color: "#e8f7dc" }).setScrollFactor(0).setDepth(3001);
-    this.profText = this.add.text(34, 62, "Profession: --", { fontSize: "18px", color: "#d3eec6" }).setScrollFactor(0).setDepth(3001);
-    this.invText = this.add.text(34, 88, "Inventaire: vide", { fontSize: "17px", color: "#d8efd0" }).setScrollFactor(0).setDepth(3001);
+    this.ecoText = this.add.text(34, 34, "EcoBalance: --", { fontSize: "20px", color: "#e8f7dc" }).setScrollFactor(0).setDepth(9001);
+    this.profText = this.add.text(34, 62, "Lumberjack: --", { fontSize: "18px", color: "#d3eec6" }).setScrollFactor(0).setDepth(9001);
+    this.invText = this.add.text(34, 89, "Inventaire: --", { fontSize: "17px", color: "#d8efd0" }).setScrollFactor(0).setDepth(9001);
 
-    this.ecoBarBg = this.add.rectangle(34, 122, 250, 18, 0x4a2e2b, 0.9).setOrigin(0, 0.5).setDepth(3001).setScrollFactor(0);
-    this.ecoBarFill = this.add.rectangle(34, 122, 250, 18, 0x67d06a, 0.95).setOrigin(0, 0.5).setDepth(3002).setScrollFactor(0);
-
-    this.miniMap = this.add.rectangle(this.scale.width - 160, 24, 140, 140, 0x1e3024, 0.8)
-      .setOrigin(0, 0)
-      .setScrollFactor(0)
-      .setStrokeStyle(2, 0xaed18b)
-      .setDepth(3000);
-    this.add.text(this.miniMap.x + 12, this.miniMap.y + 8, "Mini-map", { fontSize: "16px", color: "#f2ffe9" }).setScrollFactor(0).setDepth(3001);
+    this.ecoBarBg = this.add.rectangle(34, 125, 260, 18, 0x4a2e2b, 0.9).setOrigin(0, 0.5).setDepth(9001).setScrollFactor(0);
+    this.ecoBarFill = this.add.rectangle(34, 125, 260, 18, 0x67d06a, 0.95).setOrigin(0, 0.5).setDepth(9002).setScrollFactor(0);
 
     for (let i = 0; i < 8; i += 1) {
       const btn = this.add.rectangle(this.scale.width - (i + 1) * 74, this.scale.height - 54, 64, 64, 0x344c3b, 0.9)
-        .setScrollFactor(0)
-        .setStrokeStyle(2, 0xa9ca86)
-        .setDepth(3001)
-        .setInteractive();
-      this.add.text(btn.x, btn.y, `${i + 1}`, { fontSize: "20px", color: "#f3ffea" }).setOrigin(0.5).setDepth(3002).setScrollFactor(0);
+        .setScrollFactor(0).setStrokeStyle(2, 0xa9ca86).setDepth(9001).setInteractive();
+      this.add.text(btn.x, btn.y, `${i + 1}`, { fontSize: "20px", color: "#f3ffea" }).setOrigin(0.5).setDepth(9002).setScrollFactor(0);
       btn.on("pointerdown", () => {
         const world = this.scene.get("MainWorld");
         if (world && world.combat) world.combat.castSkill(i, world.time.now);
@@ -847,43 +851,51 @@ class UIOverlayScene extends Phaser.Scene {
 
     world.events.on("world:ready", (state) => {
       this.setEco(state.ecoBalance);
-      this.profText.setText(`Gardien: ${state.player.playerName || "Seed"} | Lumberjack L${state.professions.Lumberjack.level}`);
+      this.syncInventory(state.inventory);
+      this.profText.setText(`Lumberjack L${state.professions.Lumberjack.level}`);
     });
+
     world.events.on("eco:changed", (value) => this.setEco(value));
+    world.events.on("eco:message", (msg, color) => this.spawnFloatingText(msg, color));
     world.events.on("floating:text", (text, color, x, y) => this.spawnFloatingText(text, color, x, y));
     world.events.on("profession:levelup", (name, lvl) => this.spawnFloatingText(`${name} lvl ${lvl}!`, 0xffea9d));
     world.events.on("profession:xp", (name, data) => {
-      if (name === "Lumberjack") this.profText.setText(`Gardien: ${world.playerData.playerName} | Lumberjack L${data.level}`);
+      if (name === "Lumberjack") this.profText.setText(`Lumberjack L${data.level}`);
     });
   }
 
   setEco(value) {
-    const mood = value > 70 ? "Florissant" : value < 40 ? "Colère" : "Fragile";
+    const mood = value > 80 ? "Luxuriant" : value < 40 ? "Affaibli" : "Stable";
     this.ecoText.setText(`EcoBalance: ${value} (${mood})`);
-
     const ratio = Phaser.Math.Clamp(value / 100, 0, 1);
-    this.tweens.add({ targets: this.ecoBarFill, width: 250 * ratio, duration: 220, ease: "Sine.Out" });
-    const col = Phaser.Display.Color.Interpolate.ColorWithColor(
+    this.tweens.add({ targets: this.ecoBarFill, width: 260 * ratio, duration: 220, ease: "Sine.Out" });
+    const c = Phaser.Display.Color.Interpolate.ColorWithColor(
       Phaser.Display.Color.IntegerToColor(0xc74b45),
       Phaser.Display.Color.IntegerToColor(0x5ddb67),
       100,
       value
     );
-    this.ecoBarFill.fillColor = Phaser.Display.Color.GetColor(col.r, col.g, col.b);
+    this.ecoBarFill.fillColor = Phaser.Display.Color.GetColor(c.r, c.g, c.b);
   }
 
-  addInventory(item, qty) {
-    this.inventory[item] = (this.inventory[item] || 0) + qty;
+  addInventory(item, qty, fullInventory = null) {
+    if (fullInventory) this.inventory = { ...fullInventory };
+    else this.inventory[item] = (this.inventory[item] || 0) + qty;
+    this.syncInventory(this.inventory);
+  }
+
+  syncInventory(inv) {
+    this.inventory = { ...inv };
     const txt = Object.entries(this.inventory).map(([k, v]) => `${k} x${v}`).join(" | ");
-    this.invText.setText(`Inventaire: ${txt}`);
+    this.invText.setText(`Inventaire: ${txt || "vide"}`);
   }
 
   spawnFloatingText(text, color = 0xffffff, x = null, y = null) {
-    const strColor = Phaser.Display.Color.IntegerToColor(color).rgba;
-    const t = this.add.text(x || this.scale.width * 0.5, y || this.scale.height - 180, text, { fontSize: "18px", color: strColor })
-      .setDepth(3200)
-      .setScrollFactor(1);
-    this.tweens.add({ targets: t, y: t.y - 30, alpha: 0, duration: 900, onComplete: () => t.destroy() });
+    const col = Phaser.Display.Color.IntegerToColor(color).rgba;
+    const t = this.add.text(x || this.scale.width * 0.5, y || this.scale.height * 0.35, text, { fontSize: "18px", color: col })
+      .setDepth(9200)
+      .setScrollFactor(0);
+    this.tweens.add({ targets: t, y: t.y - 30, alpha: 0, duration: 950, onComplete: () => t.destroy() });
   }
 }
 
@@ -895,10 +907,7 @@ const config = {
   backgroundColor: "#000000",
   physics: {
     default: "arcade",
-    arcade: {
-      gravity: { y: 0 },
-      debug: false
-    }
+    arcade: { gravity: { y: 0 }, debug: false }
   },
   scale: {
     mode: Phaser.Scale.RESIZE,
